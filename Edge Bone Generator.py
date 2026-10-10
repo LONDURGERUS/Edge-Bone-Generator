@@ -199,7 +199,7 @@ def register():
         name="Bone Length", default=0.003, precision=4, min=0.0001
     )
     bpy.types.Scene.edge_bbone_scale = bpy.props.FloatProperty(
-        name="BBone Scale", default=0.000979, precision=6, min=0.00001
+        name="BBone Scale", default=0.001, precision=6, min=0.00001
     )
     bpy.types.Scene.edge_inside_offset = bpy.props.FloatProperty(
         name="Inside Offset", default=0.0005, precision=4
