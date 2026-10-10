@@ -1,9 +1,9 @@
 bl_info = {
     "name": "Edge Recessed Bone Generator",
-    "author": "Custom",
+    "author": "Leon/LONDURGERUS",
     "version": (1, 4),
     "blender": (4, 0, 0),
-    "location": "View3D > Sidebar > Rigging Tab",
+    "location": "View3D > Sidebar > Rig Edge Tab",
     "description": "Generates recessed bones along selected mesh edges oriented to vertex normals.",
     "category": "Rigging",
 }
@@ -165,7 +165,7 @@ class RIG_PT_edge_bones_panel(bpy.types.Panel):
     bl_idname = "RIG_PT_edge_bones_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'Rigging'
+    bl_category = 'B-Edge'
 
     def draw(self, context):
         layout = self.layout
