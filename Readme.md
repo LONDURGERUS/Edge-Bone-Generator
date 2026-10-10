@@ -41,7 +41,7 @@ A free, open-source Blender add-on designed for riggers to quickly generate rece
    * **B-Bone Segments:** Sets the bending segments for the bones.
    * **Armature:** The name of the target armature object.
 5. Click **Create Edge Bones**!
-
+![Addon Demo](Example.gif)
 ---
 
 ## ⚙️ Default Preferences
