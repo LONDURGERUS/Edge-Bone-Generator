@@ -42,6 +42,7 @@ A free, open-source Blender add-on designed for riggers to quickly generate rece
    * **Armature:** The name of the target armature object.
 5. Click **Create Edge Bones**!
 ![Addon Demo](Example.gif)
+6. To repeat last operation do shift R to not have too Click on it again
 ---
 
 ## ⚙️ Default Preferences
