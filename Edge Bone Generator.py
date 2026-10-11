@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Edge Recessed Bone Generator",
     "author": "Leon/LONDURGERUS",
-    "version": (1, 4),
+    "version": (1, 6),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Rig Edge Tab",
     "description": "Generates recessed bones along selected mesh edges oriented to vertex normals.",
@@ -17,16 +17,19 @@ class EDGEBONE_AddonPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
     default_bone_length: bpy.props.FloatProperty(
-        name="Default Bone Length", default=0.003, precision=4, min=0.0001
+        name="Default Bone Length", default=0.006, precision=4, min=0.0001
     )
     default_bbone_scale: bpy.props.FloatProperty(
-        name="Default BBone Scale", default=0.000979, precision=6, min=0.00001
+        name="Default BBone Scale", default=0.001, precision=6, min=0.00001
     )
     default_inside_offset: bpy.props.FloatProperty(
         name="Default Inside Offset", default=0.0005, precision=4
     )
     default_segments: bpy.props.IntProperty(
         name="Default B-Bone Segments", default=1, min=1, max=32
+    )
+    default_flip_z: bpy.props.BoolProperty(
+        name="Default Flip Z-Axis (Inward)", default=False
     )
     default_prefix: bpy.props.StringProperty(
         name="Bone Name Prefix", default="E_Bone"
@@ -39,10 +42,11 @@ class EDGEBONE_AddonPreferences(bpy.types.AddonPreferences):
         layout.prop(self, "default_bbone_scale")
         layout.prop(self, "default_inside_offset")
         layout.prop(self, "default_segments")
+        layout.prop(self, "default_flip_z")
         layout.prop(self, "default_prefix")
 
 
-# --- Operator ---
+# --- Main Generator Operator ---
 class RIG_OT_create_edge_bones(bpy.types.Operator):
     """Generate recessed bones along selected edges"""
     bl_idname = "rig.create_edge_bones"
@@ -53,11 +57,11 @@ class RIG_OT_create_edge_bones(bpy.types.Operator):
         scene = context.scene
         prefs = context.preferences.addons[__name__].preferences
 
-        # Pull settings from N-panel (falls back to scene or preferences)
         bone_length = scene.edge_bone_length
         bbone_scale = scene.edge_bbone_scale
         inside_offset = scene.edge_inside_offset
         segments = scene.edge_segments
+        flip_z = scene.edge_flip_z
         armature_name = scene.edge_armature_name
         prefix = prefs.default_prefix
 
@@ -140,9 +144,9 @@ class RIG_OT_create_edge_bones(bpy.types.Operator):
             bone.head = head_pos
             bone.tail = tail_pos
 
-            bone.align_roll(normal)
+            roll_vector = -normal if flip_z else normal
+            bone.align_roll(roll_vector)
 
-            # B-Bone properties
             bone.bbone_x = bbone_scale
             bone.bbone_z = bbone_scale
             bone.bbone_scalein = mathutils.Vector((1.0, 1.0, 1.0))
@@ -159,13 +163,38 @@ class RIG_OT_create_edge_bones(bpy.types.Operator):
         return {'FINISHED'}
 
 
+# --- Utility Operator: Flip Selected Bone Rolls (180 Degrees) ---
+class RIG_OT_flip_bone_roll(bpy.types.Operator):
+    """Flip the roll (Z-axis direction) of selected bones in Edit Mode by 180 degrees"""
+    bl_idname = "rig.flip_bone_roll"
+    bl_label = "Flip Selected Bone Rolls"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        armature_obj = context.active_object
+        if not armature_obj or armature_obj.type != 'ARMATURE' or armature_obj.mode != 'EDIT':
+            self.report({'ERROR'}, "Please select an Armature and enter Edit Mode.")
+            return {'CANCELLED'}
+
+        selected_bones = [b for b in armature_obj.data.edit_bones if b.select]
+        if not selected_bones:
+            self.report({'ERROR'}, "No bones selected in Edit Mode.")
+            return {'CANCELLED'}
+
+        for bone in selected_bones:
+            bone.roll += 3.141592653589793  # Adds exactly 180 degrees (in radians)
+
+        self.report({'INFO'}, f"Flipped roll for {len(selected_bones)} selected bone(s).")
+        return {'FINISHED'}
+
+
 # --- Sidebar UI Panel ---
 class RIG_PT_edge_bones_panel(bpy.types.Panel):
     bl_label = "Edge Bone Generator"
     bl_idname = "RIG_PT_edge_bones_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'B-Edge'
+    bl_category = 'Rig Edge'
 
     def draw(self, context):
         layout = self.layout
@@ -176,15 +205,20 @@ class RIG_PT_edge_bones_panel(bpy.types.Panel):
         col.prop(scene, "edge_bbone_scale")
         col.prop(scene, "edge_inside_offset")
         col.prop(scene, "edge_segments")
+        col.prop(scene, "edge_flip_z")
         col.prop(scene, "edge_armature_name")
 
         layout.separator()
         layout.operator("rig.create_edge_bones", icon='BONE_DATA')
+        
+        layout.separator()
+        layout.operator("rig.flip_bone_roll", icon='FILE_REFRESH')
 
 
 classes = (
     EDGEBONE_AddonPreferences,
     RIG_OT_create_edge_bones,
+    RIG_OT_flip_bone_roll,
     RIG_PT_edge_bones_panel,
 )
 
@@ -192,11 +226,8 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    # Dynamic properties initialized from Add-on preferences
-    prefs = bpy.context.preferences.addons[__name__].preferences if __name__ in bpy.context.preferences.addons else None
-    
     bpy.types.Scene.edge_bone_length = bpy.props.FloatProperty(
-        name="Bone Length", default=0.003, precision=4, min=0.0001
+        name="Bone Length", default=0.006, precision=4, min=0.0001
     )
     bpy.types.Scene.edge_bbone_scale = bpy.props.FloatProperty(
         name="BBone Scale", default=0.001, precision=6, min=0.00001
@@ -206,6 +237,9 @@ def register():
     )
     bpy.types.Scene.edge_segments = bpy.props.IntProperty(
         name="B-Bone Segments", default=1, min=1, max=32
+    )
+    bpy.types.Scene.edge_flip_z = bpy.props.BoolProperty(
+        name="Flip Z-Axis (Inward)", default=False
     )
     bpy.types.Scene.edge_armature_name = bpy.props.StringProperty(
         name="Armature", default="EdgeBones"
@@ -219,6 +253,7 @@ def unregister():
     del bpy.types.Scene.edge_bbone_scale
     del bpy.types.Scene.edge_inside_offset
     del bpy.types.Scene.edge_segments
+    del bpy.types.Scene.edge_flip_z
     del bpy.types.Scene.edge_armature_name
 
 if __name__ == "__main__":
